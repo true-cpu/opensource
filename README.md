@@ -1,6 +1,6 @@
 # HUIT Schedule Hub
 
-Ứng dụng PHP quản lý thời khóa biểu giảng dạy đa cơ sở của HUIT. Quản trị viên có thể lọc và CRUD lịch, kiểm tra trùng tiết/phòng, gợi ý giảng viên theo chuyên môn và lịch trống. Giảng viên đăng nhập để xem lịch cá nhân theo tuần và các buổi học trong tháng.
+Ứng dụng PHP quản lý thời khóa biểu giảng dạy đa cơ sở của HUIT. Quản trị viên có thể lọc và CRUD lịch, kiểm tra trùng tiết/phòng, gợi ý giảng viên theo chuyên môn và lịch trống. Giảng viên đăng nhập để xem lịch cá nhân theo tuần, chuyển tuần và chọn ngày bất kỳ để xem tuần tương ứng.
 
 ## Yêu cầu
 
@@ -50,7 +50,7 @@ Các tài khoản giảng viên sinh tự động có email `giangvien01@huit.ed
 - Hệ thống chặn trùng tiết đối với cùng giảng viên hoặc cùng phòng tại một cơ sở.
 - Khi đổi cơ sở, giảng viên cần có ít nhất một tiết trống để di chuyển.
 - Gợi ý chỉ liệt kê giảng viên đang trống; ưu tiên chuyên môn phù hợp và lịch gần kề tại cùng cơ sở.
-- Lịch được xem như lịch lặp hàng tuần; trang lịch cá nhân khai triển các buổi học theo tháng đã chọn.
+- Lịch được hiển thị theo tuần từ thứ Hai đến Chủ nhật; dùng nút chuyển tuần hoặc chọn ngày để xem tuần tương ứng.
 
 ## Kiểm tra cú pháp PHP
 

@@ -247,24 +247,26 @@ if ($editId && $isAdmin) {
     $editStatement->execute([$editId]);
     $editing = $editStatement->fetch() ?: null;
 }
-$month = (string) ($_GET['month'] ?? date('Y-m'));
+$selectedDate = (string) ($_GET['week'] ?? date('Y-m-d'));
 if (
-    preg_match('/^\d{4}-\d{2}$/', $month) !== 1
-    || !checkdate((int) substr($month, 5, 2), 1, (int) substr($month, 0, 4))
+    preg_match('/^\d{4}-\d{2}-\d{2}$/', $selectedDate) !== 1
+    || !checkdate(
+        (int) substr($selectedDate, 5, 2),
+        (int) substr($selectedDate, 8, 2),
+        (int) substr($selectedDate, 0, 4)
+    )
 ) {
-    $month = date('Y-m');
+    $selectedDate = date('Y-m-d');
 }
-$monthStart = new DateTimeImmutable($month . '-01');
-$monthEnd = $monthStart->modify('last day of this month');
-$monthOccurrences = [];
-if (!$isAdmin || $page === 'calendar') {
-    foreach ($rows as $row) {
-        for ($date = $monthStart; $date <= $monthEnd; $date = $date->modify('+1 day')) {
-            if ((int) $date->format('N') === ((int) $row['day_of_week'])) {
-                $monthOccurrences[] = ['date' => $date, 'row' => $row];
-            }
-        }
-    }
+$selectedWeekDate = DateTimeImmutable::createFromFormat('!Y-m-d', $selectedDate);
+$weekStartDate = $selectedWeekDate->modify('-' . ((int) $selectedWeekDate->format('N') - 1) . ' days');
+$weekEndDate = $weekStartDate->modify('+6 days');
+$weekFilters = ['page' => 'calendar'];
+if ($isAdmin && $filters['branch_id']) {
+    $weekFilters['branch_id'] = $filters['branch_id'];
+}
+if ($isAdmin && $filters['teacher_id']) {
+    $weekFilters['teacher_id'] = $filters['teacher_id'];
 }
 ?><!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -341,12 +343,11 @@ if (!$isAdmin || $page === 'calendar') {
         <?php if ($rows): ?><div class="table-wrap"><table><thead><tr><th>Học phần</th><th>Giảng viên</th><th>Cơ sở / Phòng</th><th>Thời gian</th><th></th></tr></thead><tbody><?php foreach ($rows as $row): ?><tr><td><strong><?= e($row['subject_name']) ?></strong><small><?= e($row['expertise']) ?></small></td><td><?= e($row['full_name']) ?></td><td><?= e($row['branch_name']) ?><small><?= e($row['room']) ?></small></td><td><?= e($days[(int) $row['day_of_week']] ?? '') ?><small>Tiết <?= e($row['shift_or_periods']) ?></small></td><td class="actions"><a class="action-link" href="index.php?page=schedules&amp;edit=<?= (int) $row['id'] ?>#schedule-form">Sửa</a><form method="post" onsubmit="return confirm('Bạn có chắc muốn xóa lịch này?')"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="delete_schedule"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button class="action-link danger-link" type="submit">Xóa</button></form></td></tr><?php endforeach; ?></tbody></table></div><?php else: ?><div class="empty-state">Chưa có lịch nào. Hãy tạo lịch giảng dạy đầu tiên.</div><?php endif; ?>
       </section>
     <?php else: ?>
-      <section class="page-heading"><div><p class="eyebrow"><?= $isAdmin ? 'THỜI KHÓA BIỂU TOÀN TRƯỜNG' : 'CỔNG THÔNG TIN GIẢNG VIÊN' ?></p><h1><?= $isAdmin ? 'Lịch giảng dạy' : 'Lịch của tôi' ?></h1><p class="muted"><?= $isAdmin ? 'Lọc thời khóa biểu theo cơ sở, giảng viên và tuần/tháng.' : 'Theo dõi lịch dạy và cơ sở bạn cần đến trong tháng.' ?></p></div></section>
-      <?php if ($isAdmin): ?><section class="panel filter-panel"><form class="filter-form" method="get"><input type="hidden" name="page" value="calendar"><label>Cơ sở<select name="branch_id"><option value="">Tất cả cơ sở</option><?php foreach ($branches as $branch): ?><option value="<?= (int) $branch['id'] ?>" <?= (int) $filters['branch_id'] === (int) $branch['id'] ? 'selected' : '' ?>><?= e($branch['branch_name']) ?></option><?php endforeach; ?></select></label><label>Giảng viên<select name="teacher_id"><option value="">Tất cả giảng viên</option><?php foreach ($teachers as $teacher): ?><option value="<?= (int) $teacher['id'] ?>" <?= (int) $filters['teacher_id'] === (int) $teacher['id'] ? 'selected' : '' ?>><?= e($teacher['full_name']) ?></option><?php endforeach; ?></select></label><button class="button secondary" type="submit">Áp dụng bộ lọc</button></form></section><?php endif; ?>
-      <section class="panel calendar-panel"><div class="panel-heading"><div><h2><?= $isAdmin ? 'Thời khóa biểu tuần' : 'Lịch giảng dạy theo tuần' ?></h2><p class="muted"><?= e($isAdmin ? 'Lịch định kỳ, nhóm theo thứ trong tuần.' : $user['full_name']) ?></p></div><form class="month-picker" method="get"><input type="hidden" name="page" value="calendar"><?php if ($isAdmin && $filters['branch_id']): ?><input type="hidden" name="branch_id" value="<?= (int) $filters['branch_id'] ?>"><?php endif; ?><?php if ($isAdmin && $filters['teacher_id']): ?><input type="hidden" name="teacher_id" value="<?= (int) $filters['teacher_id'] ?>"><?php endif; ?><label for="month">Xem tháng</label><input id="month" name="month" type="month" value="<?= e($month) ?>"><button class="button secondary small-button">Xem</button></form></div>
-        <?php if ($rows): ?><div class="schedule-grid"><?php foreach ($days as $dayNumber => $dayName): $dayRows = array_values(array_filter($rows, static fn (array $row): bool => (int) $row['day_of_week'] === $dayNumber)); ?><section class="day-column"><h3><?= e($dayName) ?><span><?= count($dayRows) ?> lớp</span></h3><?php if (!$dayRows): ?><p class="day-empty">Không có lịch</p><?php endif; ?><?php foreach ($dayRows as $row): ?><article class="class-card"><span class="class-period">TIẾT <?= e($row['shift_or_periods']) ?></span><strong><?= e($row['subject_name']) ?></strong><span><?= e($row['branch_name']) ?></span><small><?= e($row['room']) ?><?= $isAdmin ? ' · ' . e($row['full_name']) : '' ?></small></article><?php endforeach; ?></section><?php endforeach; ?></div>
-        <div class="month-list"><div class="month-list-heading"><h3>Lịch trong tháng <?= e($monthStart->format('m/Y')) ?></h3><span><?= count($monthOccurrences) ?> buổi học</span></div><?php if ($monthOccurrences): ?><div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Học phần</th><th>Tiết</th><th>Cơ sở</th><th>Phòng</th><?php if ($isAdmin): ?><th>Giảng viên</th><?php endif; ?></tr></thead><tbody><?php foreach ($monthOccurrences as $occurrence): $row = $occurrence['row']; ?><tr><td><?= e($occurrence['date']->format('d/m/Y')) ?><small><?= e($days[(int) $row['day_of_week']]) ?></small></td><td><strong><?= e($row['subject_name']) ?></strong></td><td><?= e($row['shift_or_periods']) ?></td><td><?= e($row['branch_name']) ?></td><td><?= e($row['room']) ?></td><?php if ($isAdmin): ?><td><?= e($row['full_name']) ?></td><?php endif; ?></tr><?php endforeach; ?></tbody></table></div><?php else: ?><div class="empty-state compact">Không có lịch trong tháng này.</div><?php endif; ?></div>
-        <?php else: ?><div class="empty-state">Chưa có lịch giảng dạy phù hợp với bộ lọc.</div><?php endif; ?>
+      <section class="page-heading"><div><p class="eyebrow"><?= $isAdmin ? 'THỜI KHÓA BIỂU TOÀN TRƯỜNG' : 'CỔNG THÔNG TIN GIẢNG VIÊN' ?></p><h1><?= $isAdmin ? 'Lịch giảng dạy' : 'Lịch của tôi' ?></h1><p class="muted"><?= $isAdmin ? 'Xem lịch theo tuần, lọc theo cơ sở hoặc giảng viên.' : 'Theo dõi lịch dạy trong tuần và cơ sở bạn cần đến.' ?></p></div></section>
+      <?php if ($isAdmin): ?><section class="panel filter-panel"><form class="filter-form" method="get"><input type="hidden" name="page" value="calendar"><input type="hidden" name="week" value="<?= e($weekStartDate->format('Y-m-d')) ?>"><label>Cơ sở<select name="branch_id"><option value="">Tất cả cơ sở</option><?php foreach ($branches as $branch): ?><option value="<?= (int) $branch['id'] ?>" <?= (int) $filters['branch_id'] === (int) $branch['id'] ? 'selected' : '' ?>><?= e($branch['branch_name']) ?></option><?php endforeach; ?></select></label><label>Giảng viên<select name="teacher_id"><option value="">Tất cả giảng viên</option><?php foreach ($teachers as $teacher): ?><option value="<?= (int) $teacher['id'] ?>" <?= (int) $filters['teacher_id'] === (int) $teacher['id'] ? 'selected' : '' ?>><?= e($teacher['full_name']) ?></option><?php endforeach; ?></select></label><button class="button secondary" type="submit">Áp dụng bộ lọc</button></form></section><?php endif; ?>
+      <section class="panel calendar-panel"><div class="panel-heading"><div><h2>Lịch giảng dạy trong tuần</h2><p class="muted"><?= e($isAdmin ? 'Lịch định kỳ theo ngày trong tuần.' : $user['full_name']) ?></p></div><div class="week-toolbar"><form class="week-picker" method="get"><input type="hidden" name="page" value="calendar"><?php if ($isAdmin && $filters['branch_id']): ?><input type="hidden" name="branch_id" value="<?= (int) $filters['branch_id'] ?>"><?php endif; ?><?php if ($isAdmin && $filters['teacher_id']): ?><input type="hidden" name="teacher_id" value="<?= (int) $filters['teacher_id'] ?>"><?php endif; ?><label for="week">Chọn tuần</label><input id="week" name="week" type="date" value="<?= e($weekStartDate->format('Y-m-d')) ?>"><button class="button secondary small-button" type="submit">Xem tuần</button></form><nav class="week-navigation" aria-label="Điều hướng tuần"><a class="button secondary small-button" href="index.php?<?= e(http_build_query($weekFilters + ['week' => $weekStartDate->modify('-7 days')->format('Y-m-d')])) ?>" aria-label="Tuần trước">←</a><a class="button secondary small-button" href="index.php?<?= e(http_build_query($weekFilters + ['week' => date('Y-m-d')])) ?>">Tuần này</a><a class="button secondary small-button" href="index.php?<?= e(http_build_query($weekFilters + ['week' => $weekStartDate->modify('+7 days')->format('Y-m-d')])) ?>" aria-label="Tuần sau">→</a></nav></div></div>
+        <p class="week-range"><?= e($weekStartDate->format('d/m/Y')) ?> – <?= e($weekEndDate->format('d/m/Y')) ?></p>
+        <div class="schedule-grid"><?php foreach ($days as $dayNumber => $dayName): $dayRows = array_values(array_filter($rows, static fn (array $row): bool => (int) $row['day_of_week'] === $dayNumber)); $dayDate = $weekStartDate->modify('+' . ($dayNumber - 1) . ' days'); ?><section class="day-column"><h3><span><?= e($dayName) ?></span><time datetime="<?= e($dayDate->format('Y-m-d')) ?>"><?= e($dayDate->format('d/m')) ?></time></h3><span class="day-class-count"><?= count($dayRows) ?> lớp</span><?php if (!$dayRows): ?><p class="day-empty">Không có lịch</p><?php endif; ?><?php foreach ($dayRows as $row): ?><article class="class-card"><span class="class-period">TIẾT <?= e($row['shift_or_periods']) ?></span><strong><?= e($row['subject_name']) ?></strong><span><?= e($row['branch_name']) ?></span><small><?= e($row['room']) ?><?= $isAdmin ? ' · ' . e($row['full_name']) : '' ?></small></article><?php endforeach; ?></section><?php endforeach; ?></div>
       </section>
       <section class="branch-cards"><?php foreach ($branches as $branch): ?><article class="branch-card"><span class="stat-icon green">⌖</span><strong><?= e($branch['branch_name']) ?></strong><small><?= e($branch['address']) ?></small></article><?php endforeach; ?></section>
     <?php endif; ?>
