@@ -1,0 +1,13 @@
+{
+  "name": "huit/schedule-hub",
+  "description": "HUIT Schedule Hub - multi-campus teaching schedule manager",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.1",
+    "vlucas/phpdotenv": "^5.6"
+  },
+  "require-dev": {
+    "fakerphp/faker": "^1.23"
+  }
+}
